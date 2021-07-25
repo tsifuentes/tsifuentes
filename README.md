@@ -1,4 +1,4 @@
-![image](https://user-images.githubusercontent.com/1950702/126908860-fe5e2a33-fc6a-4da0-b08e-3f44ad0c46b3.png)
+![image](https://user-images.githubusercontent.com/1950702/126917521-c9063e96-d155-43f5-b76a-3c496cf494e5.png)
 
 I am a Systems Engineer who loves Web Technologies, Web Architecture, Fullstack, Mobile Apps, Cloud and more!. Today, I am focus on Web Tecnologies and I am sharing all my practices in this Github profile.
 
