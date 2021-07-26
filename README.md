@@ -2,13 +2,13 @@
 
 I am a Systems Engineer who loves Web Technologies, Web Architecture, Fullstack, Mobile Apps, Cloud and more!. Today, I am focus on Web Tecnologies and I am sharing all my practices in this Github profile.
 
-Other hobbies:
-- <img src="https://image.flaticon.com/icons/png/512/1913/1913235.png" width="25" height="25"> Guitar!
-- <img width="25" height="25" src="https://image.flaticon.com/icons/png/512/2736/2736150.png"> Boxing
-- <img width="25" height="25" src="https://image.flaticon.com/icons/png/512/3600/3600996.png"> Ciclism
-- <img width="25" height="25" src="https://image.flaticon.com/icons/png/512/806/806647.png"> Drawing
-- <img width="25" height="25" src="https://image.flaticon.com/icons/png/512/129/129350.png"> Origami
-- <img width="25" height="25" src="https://image.flaticon.com/icons/png/512/167/167755.png"> Read Books!
+Other hobbies:<br>
+<img src="https://image.flaticon.com/icons/png/512/1913/1913235.png" width="25" height="25"> Guitar | 
+<img width="25" height="25" src="https://image.flaticon.com/icons/png/512/2736/2736150.png"> Boxing | 
+<img width="25" height="25" src="https://image.flaticon.com/icons/png/512/3600/3600996.png"> Ciclism | 
+<img width="25" height="25" src="https://image.flaticon.com/icons/png/512/806/806647.png"> Drawing | 
+<img width="25" height="25" src="https://image.flaticon.com/icons/png/512/129/129350.png"> Origami | 
+<img width="25" height="25" src="https://image.flaticon.com/icons/png/512/167/167755.png"> Read Books | Functional Training
 <!--
 **tsifuentes/tsifuentes** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
