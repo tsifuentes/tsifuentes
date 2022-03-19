@@ -5,12 +5,12 @@ I love learning about Web Technologies, Algorithms, Software Architecture, Desig
 
 **Other hobbies:**   
    
-<img src="https://image.flaticon.com/icons/png/512/1913/1913235.png" width="25" height="25"> Guitar | 
-<img width="25" height="25" src="https://image.flaticon.com/icons/png/512/2736/2736150.png"> Boxing | 
-<img width="25" height="25" src="https://image.flaticon.com/icons/png/512/3600/3600996.png"> Ciclism | 
-<img width="25" height="25" src="https://image.flaticon.com/icons/png/512/806/806647.png"> Drawing | 
-<img width="25" height="25" src="https://image.flaticon.com/icons/png/512/129/129350.png"> Origami | 
-<img width="25" height="25" src="https://image.flaticon.com/icons/png/512/167/167755.png"> Books
+Guitar | 
+Boxing | 
+Ciclism | 
+Drawing | 
+Origami | 
+Books
   
 ---    
    
