@@ -1,0 +1,709 @@
+import { act } from 'react';
+import { fireEvent, screen, waitFor } from '@testing-library/dom';
+import { campaignsMock } from 'src/app/campaigns/proxy/__mocks__/campaigns.mock';
+import { campaignsStub } from 'src/app/campaigns/store/__stubs__/campaigns.stub';
+import { DateTime } from 'solrev-digital-web-domain/lib/date-time';
+import userEvent from '@testing-library/user-event';
+import { HttpStatusCode } from 'solrev-digital-utilities/lib/http';
+import { CampaignsApiActions } from 'src/app/campaigns/store/actions';
+import { renderComponentCampaigns } from 'src/app/campaigns/test-utils/renderComponent';
+import { format } from 'solrev-digital-utilities/lib/date';
+import { CampaignStatus } from 'src/app/campaigns/domain/campaign-status.enum';
+import { EditCampaignForm } from '../EditCampaignForm';
+
+const mockGlobalDispatch = jest.fn();
+
+jest.mock('src/store/app-context', () => {
+  const appContext = jest.requireActual<
+    typeof import('src/store/app-context')
+  >('src/store/app-context');
+  const hook = appContext.useAppGlobalDispatch;
+
+  return {
+    ...appContext,
+    useAppGlobalDispatch: () => {
+      const dispatch = hook();
+
+      return (value: Parameters<typeof dispatch>[0]) => {
+        mockGlobalDispatch(value);
+        dispatch(value);
+      };
+    },
+  };
+});
+
+describe('EditCampaignForm Component', () => {
+  const priorityAlertMessage =
+    'Existen más prioridades que campañas.';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should render component', async () => {
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm />,
+      extraState: {
+        activeCampaigns: campaignsStub,
+      },
+    });
+
+    expect(
+      screen.getAllByLabelText('Selecciona una Prioridad').length,
+    ).toBe(campaignsMock.length);
+  });
+
+  it('should get an initial disabled button', async () => {
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm />,
+      extraState: {
+        activeCampaigns: campaignsStub,
+      },
+    });
+
+    const editCampaignButton = screen.getByRole('button', {
+      name: 'Guardar',
+    });
+
+    expect(editCampaignButton).toBeInTheDocument();
+    expect(editCampaignButton).toBeDisabled();
+  });
+
+  it('should get an enabled button when any form input is updated and valid', async () => {
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm />,
+      extraState: {
+        activeCampaigns: campaignsStub,
+      },
+    });
+
+    const selectPriorityFirst = screen.getAllByLabelText(
+      'Selecciona una Prioridad',
+    )[0];
+
+    const selectPrioritySecond = screen.getAllByLabelText(
+      'Selecciona una Prioridad',
+    )[1];
+
+    await userEvent.selectOptions(selectPriorityFirst, '2');
+    await userEvent.selectOptions(selectPrioritySecond, '1');
+
+    expect(
+      screen.getByRole('button', { name: 'Guardar' }),
+    ).not.toBeDisabled();
+  });
+
+  it('should get a disabled/enabled row when status is inactive/active', async () => {
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm />,
+      extraState: {
+        activeCampaigns: campaignsStub,
+      },
+    });
+
+    const selectStatus = screen.getAllByLabelText(
+      'Selecciona un Estado',
+    )[0];
+
+    const selectPriority = screen.getAllByLabelText(
+      'Selecciona una Prioridad',
+    )[0];
+
+    const pickerEndDate = screen.getAllByPlaceholderText(
+      'DD/MM/YYYY',
+    )[0];
+
+    await userEvent.selectOptions(
+      selectStatus,
+      CampaignStatus.Disabled,
+    );
+
+    expect(selectPriority).toBeDisabled();
+    expect(pickerEndDate).toBeDisabled();
+
+    await userEvent.selectOptions(
+      selectStatus,
+      CampaignStatus.Enabled,
+    );
+
+    expect(selectPriority).not.toBeDisabled();
+    expect(pickerEndDate).not.toBeDisabled();
+  });
+
+  it('should disable DatePicker when toggle hasNoExpiration is switched', async () => {
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm />,
+      extraState: {
+        activeCampaigns: campaignsStub,
+      },
+    });
+
+    const checkboxHasNoExpiration = screen.getAllByRole(
+      'switch',
+    )[0] as HTMLInputElement;
+
+    const pickerEndDate = screen.getAllByPlaceholderText(
+      'DD/MM/YYYY',
+    )[0];
+
+    expect(pickerEndDate).not.toBeDisabled();
+
+    await userEvent.click(checkboxHasNoExpiration);
+
+    expect(checkboxHasNoExpiration.checked).toBe(true);
+    expect(pickerEndDate).toBeDisabled();
+  });
+
+  it('should initial date when "Cancelar" button is clicked', async () => {
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm />,
+      extraState: {
+        activeCampaigns: [campaignsStub[0]],
+      },
+    });
+
+    const endDateOpenButton = screen.getByRole('button', {
+      name: 'Viernes, Febrero Veintitrés, 2024, selectDate',
+    });
+
+    await userEvent.click(endDateOpenButton);
+
+    const cancelButton = await screen.findByRole('button', {
+      name: 'Cancelar',
+    });
+
+    await userEvent.click(cancelButton);
+
+    const inputDate = screen.getByPlaceholderText(
+      'DD/MM/YYYY',
+    ) as HTMLInputElement;
+
+    expect(inputDate.value).toBe('23/02/2024');
+  });
+
+  it('should show an error message when date is menor o igual al día actual', async () => {
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm />,
+      extraState: {
+        activeCampaigns: [
+          {
+            ...campaignsStub[0],
+            startDate: new DateTime(
+              '2024-02-10T00:00:00-05:00',
+            ),
+            endDate: new DateTime(
+              '2024-02-23T00:00:00-05:00',
+            ),
+          },
+        ],
+      },
+    });
+
+    const inputDate = screen.getByPlaceholderText(
+      'DD/MM/YYYY',
+    ) as HTMLInputElement;
+
+    act(() => {
+      fireEvent.change(inputDate, {
+        target: {
+          value: '22/02/2024',
+        },
+      });
+    });
+
+    expect(inputDate.value).toBe('22/02/2024');
+
+    expect(
+      await screen.findByText(
+        /La fecha debe ser posterior al día actual/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('should send updated campaigns when "Guardar" button is clicked', async () => {
+    const getUpdatedCampaignsMock = jest.fn();
+
+    jest
+      .spyOn(CampaignsApiActions, 'updateCampaign')
+      .mockReturnValueOnce(Promise.resolve());
+
+    jest
+      .spyOn(CampaignsApiActions, 'getActiveCampaigns')
+      .mockReturnValueOnce(Promise.resolve());
+
+    await renderComponentCampaigns({
+      Component: (
+        <EditCampaignForm
+          getUpdatedCampaigns={getUpdatedCampaignsMock}
+          isSubmit
+        />
+      ),
+      extraState: {
+        activeCampaigns: campaignsStub,
+      },
+    });
+
+    const [selectPriorityFirst, selectPrioritySecond] =
+      screen.getAllByLabelText('Selecciona una Prioridad');
+
+    const updateCampaignButton = screen.getByRole('button', {
+      name: 'Guardar',
+    });
+
+    const [selectStatusFirst] = screen.getAllByLabelText(
+      'Selecciona un Estado',
+    );
+
+    const [inputDate] =
+      screen.getAllByPlaceholderText<HTMLInputElement>(
+        'DD/MM/YYYY',
+      );
+
+    const tomorrowDate = new Date();
+
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+
+    const formattedTomorrowDate = format(tomorrowDate);
+
+    await act(async () => {
+      fireEvent.change(inputDate, {
+        target: {
+          value: formattedTomorrowDate,
+        },
+      });
+
+      fireEvent.change(selectPriorityFirst, {
+        target: {
+          value: '2',
+        },
+      });
+
+      fireEvent.change(selectPrioritySecond, {
+        target: {
+          value: '1',
+        },
+      });
+
+      fireEvent.change(selectStatusFirst, {
+        target: {
+          value: CampaignStatus.Disabled,
+        },
+      });
+    });
+
+    expect(updateCampaignButton).not.toBeDisabled();
+
+    await act(async () =>
+      userEvent.click(updateCampaignButton),
+    );
+
+    expect(
+      CampaignsApiActions.updateCampaign,
+    ).toHaveBeenCalledTimes(1);
+
+    expect(
+      CampaignsApiActions.getActiveCampaigns,
+    ).toHaveBeenCalledTimes(1);
+
+    expect(getUpdatedCampaignsMock).toHaveBeenCalledWith([
+      {
+        changes: [
+          {
+            final: '1',
+            initial: '2',
+            name: 'Prioridad',
+          },
+          {
+            final: formattedTomorrowDate,
+            initial: '23/02/2024',
+            name: 'Vigencia',
+          },
+          {
+            final: 'Inactivo',
+            initial: 'Activo',
+            name: 'Estado',
+          },
+        ],
+        name: 'Super omega scotia',
+      },
+      {
+        changes: [
+          {
+            final: '2',
+            initial: '1',
+            name: 'Prioridad',
+          },
+        ],
+        name: 'Super beta',
+      },
+      {
+        changes: [],
+        name: 'Alpha',
+      },
+    ]);
+  });
+
+  it('should call getAccounts and failed', async () => {
+    jest
+      .spyOn(CampaignsApiActions, 'updateCampaign')
+      .mockImplementationOnce(() => {
+        throw {
+          status: HttpStatusCode.BadRequest,
+          code: '123',
+          message: 'API error',
+        };
+      });
+
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm isSubmit />,
+      extraState: {
+        activeCampaigns: campaignsStub,
+      },
+    });
+
+    const selectPriority = screen.getAllByLabelText(
+      'Selecciona una Prioridad',
+    )[0];
+
+    const updateCampaignButton = screen.getByRole('button', {
+      name: 'Guardar',
+    });
+
+    await act(async () => {
+      fireEvent.change(selectPriority, {
+        target: {
+          value: '3',
+        },
+      });
+
+      userEvent.click(updateCampaignButton);
+    });
+
+    const { primaryAction } =
+      mockGlobalDispatch.mock.lastCall[0].payload;
+
+    await act(async () => {
+      primaryAction();
+    });
+
+    expect(mockGlobalDispatch.mock.lastCall[0]).toEqual({
+      type: 'CLEAR_ERROR',
+    });
+  });
+
+  it('should render an input error for duplicate priority', async () => {
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm />,
+      extraState: {
+        activeCampaigns: campaignsStub,
+      },
+    });
+
+    const selectPriorityFirst = screen.getAllByLabelText(
+      'Selecciona una Prioridad',
+    )[0];
+
+    await userEvent.selectOptions(selectPriorityFirst, '2');
+
+    expect(
+      screen.queryByText('Prioridad duplicada'),
+    ).toBeInTheDocument();
+
+    await userEvent.selectOptions(selectPriorityFirst, '1');
+
+    expect(
+      screen.queryByText('Prioridad duplicada'),
+    ).toBeNull();
+  });
+
+  it('should show priority alert when an enabled campaign is changed to disabled and priorities are not consecutive', async () => {
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm />,
+      extraState: {
+        activeCampaigns: campaignsStub,
+      },
+    });
+
+    const selectPriorities =
+      screen.getAllByLabelText<HTMLSelectElement>(
+        'Selecciona una Prioridad',
+      );
+
+    const middlePriorityIndex = selectPriorities.findIndex(
+      ({ value }) => value === '2',
+    );
+
+    const selectStatus = screen.getAllByLabelText(
+      'Selecciona un Estado',
+    )[middlePriorityIndex];
+
+    await userEvent.selectOptions(
+      selectStatus,
+      CampaignStatus.Disabled,
+    );
+
+    expect(
+      await screen.findByText(priorityAlertMessage),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText(
+        'Edita las prioridades para que puedas guardar los cambios.',
+      ),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole('button', { name: 'Guardar' }),
+    ).toBeDisabled();
+  });
+
+  it('should keep the original priority options when a campaign is changed to disabled', async () => {
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm />,
+      extraState: {
+        activeCampaigns: campaignsStub,
+      },
+    });
+
+    const selectPriorities =
+      screen.getAllByLabelText<HTMLSelectElement>(
+        'Selecciona una Prioridad',
+      );
+
+    const middlePriorityIndex = selectPriorities.findIndex(
+      ({ value }) => value === '2',
+    );
+
+    const selectStatus = screen.getAllByLabelText(
+      'Selecciona un Estado',
+    )[middlePriorityIndex];
+
+    const getPriorityValues = (
+      select: HTMLSelectElement,
+    ): string[] =>
+      Array.from(select.options)
+        .map(({ value }) => value)
+        .filter((value) => /^\d+$/.test(value));
+
+    const expectedPriorities = campaignsStub.map(
+      (_, index) => String(index + 1),
+    );
+
+    expect(
+      getPriorityValues(selectPriorities[0]),
+    ).toEqual(expectedPriorities);
+
+    await userEvent.selectOptions(
+      selectStatus,
+      CampaignStatus.Disabled,
+    );
+
+    selectPriorities.forEach((selectPriority) => {
+      expect(getPriorityValues(selectPriority)).toEqual(
+        expectedPriorities,
+      );
+    });
+  });
+
+  it('should hide priority alert when the recently disabled campaign is enabled again', async () => {
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm />,
+      extraState: {
+        activeCampaigns: campaignsStub,
+      },
+    });
+
+    const selectPriorities =
+      screen.getAllByLabelText<HTMLSelectElement>(
+        'Selecciona una Prioridad',
+      );
+
+    const middlePriorityIndex = selectPriorities.findIndex(
+      ({ value }) => value === '2',
+    );
+
+    const selectStatus = screen.getAllByLabelText(
+      'Selecciona un Estado',
+    )[middlePriorityIndex];
+
+    await userEvent.selectOptions(
+      selectStatus,
+      CampaignStatus.Disabled,
+    );
+
+    expect(
+      await screen.findByText(priorityAlertMessage),
+    ).toBeInTheDocument();
+
+    await userEvent.selectOptions(
+      selectStatus,
+      CampaignStatus.Enabled,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText(priorityAlertMessage),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it('should not show priority alert when a campaign initially disabled is changed to enabled', async () => {
+    const campaignsWithDisabledCampaign: typeof campaignsStub =
+      campaignsStub.map((campaign, index) => ({
+        ...campaign,
+        status:
+          index === 1
+            ? CampaignStatus.Disabled
+            : campaign.status,
+      }));
+
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm />,
+      extraState: {
+        activeCampaigns: campaignsWithDisabledCampaign,
+      },
+    });
+
+    const selectStatus = screen.getAllByLabelText(
+      'Selecciona un Estado',
+    )[1];
+
+    expect(
+      screen.queryByText(priorityAlertMessage),
+    ).not.toBeInTheDocument();
+
+    await userEvent.selectOptions(
+      selectStatus,
+      CampaignStatus.Enabled,
+    );
+
+    expect(
+      screen.queryByText(priorityAlertMessage),
+    ).not.toBeInTheDocument();
+  });
+
+  it('should not show priority alert when the campaign with the last priority is disabled', async () => {
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm />,
+      extraState: {
+        activeCampaigns: campaignsStub,
+      },
+    });
+
+    const selectPriorities =
+      screen.getAllByLabelText<HTMLSelectElement>(
+        'Selecciona una Prioridad',
+      );
+
+    const lastPriorityIndex = selectPriorities.findIndex(
+      ({ value }) => value === String(campaignsStub.length),
+    );
+
+    const selectStatus = screen.getAllByLabelText(
+      'Selecciona un Estado',
+    )[lastPriorityIndex];
+
+    await userEvent.selectOptions(
+      selectStatus,
+      CampaignStatus.Disabled,
+    );
+
+    expect(
+      screen.queryByText(priorityAlertMessage),
+    ).not.toBeInTheDocument();
+  });
+
+  it('should hide priority alert when active priorities are reordered consecutively', async () => {
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm />,
+      extraState: {
+        activeCampaigns: campaignsStub,
+      },
+    });
+
+    const selectPriorities =
+      screen.getAllByLabelText<HTMLSelectElement>(
+        'Selecciona una Prioridad',
+      );
+
+    const middlePriorityIndex = selectPriorities.findIndex(
+      ({ value }) => value === '2',
+    );
+
+    const lastPriorityIndex = selectPriorities.findIndex(
+      ({ value }) => value === String(campaignsStub.length),
+    );
+
+    const selectStatuses = screen.getAllByLabelText(
+      'Selecciona un Estado',
+    );
+
+    await userEvent.selectOptions(
+      selectStatuses[middlePriorityIndex],
+      CampaignStatus.Disabled,
+    );
+
+    expect(
+      await screen.findByText(priorityAlertMessage),
+    ).toBeInTheDocument();
+
+    await userEvent.selectOptions(
+      selectPriorities[lastPriorityIndex],
+      '2',
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText(priorityAlertMessage),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it('should keep priority alert when active priorities are still not consecutive', async () => {
+    await renderComponentCampaigns({
+      Component: <EditCampaignForm />,
+      extraState: {
+        activeCampaigns: campaignsStub,
+      },
+    });
+
+    const selectPriorities =
+      screen.getAllByLabelText<HTMLSelectElement>(
+        'Selecciona una Prioridad',
+      );
+
+    const middlePriorityIndex = selectPriorities.findIndex(
+      ({ value }) => value === '2',
+    );
+
+    const lastPriorityIndex = selectPriorities.findIndex(
+      ({ value }) => value === String(campaignsStub.length),
+    );
+
+    const selectStatuses = screen.getAllByLabelText(
+      'Selecciona un Estado',
+    );
+
+    await userEvent.selectOptions(
+      selectStatuses[middlePriorityIndex],
+      CampaignStatus.Disabled,
+    );
+
+    expect(
+      await screen.findByText(priorityAlertMessage),
+    ).toBeInTheDocument();
+
+    await userEvent.selectOptions(
+      selectPriorities[lastPriorityIndex],
+      String(campaignsStub.length),
+    );
+
+    expect(
+      screen.getByText(priorityAlertMessage),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole('button', { name: 'Guardar' }),
+    ).toBeDisabled();
+  });
+});
